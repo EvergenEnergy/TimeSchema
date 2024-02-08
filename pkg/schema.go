@@ -19,6 +19,7 @@ type invertedSchema[T comparable] map[T]struct {
 // for metric names, allowing the use of custom types as long as they are
 // comparable.
 type TSSchema[T comparable] struct {
+	Schema         Schema[T]
 	invertedSchema invertedSchema[T]
 }
 
@@ -26,7 +27,7 @@ type TSSchema[T comparable] struct {
 // The schema parameter is a mapping from table names to measure names and
 // then to metric names of the generic type T.
 func NewTSSchema[T comparable](schema Schema[T]) TSSchema[T] {
-	return TSSchema[T]{invertedSchema: invertSchema(schema)}
+	return TSSchema[T]{Schema: schema, invertedSchema: invertSchema(schema)}
 }
 
 func invertSchema[T comparable](schema Schema[T]) invertedSchema[T] {
