@@ -2,6 +2,7 @@ package timestream
 
 import (
 	"fmt"
+	"math/rand"
 )
 
 // Schema represents a mapping from table names to measure names and then to
@@ -67,4 +68,34 @@ func (s TSSchema[T]) GetTableNameFor(metricName T) (string, error) {
 		return v.tableName, fmt.Errorf("metric name %T not found", metricName)
 	}
 	return v.tableName, nil
+}
+
+type PredefinedValues[T comparable] map[T]float64
+
+// GenerateDummyData generates dummy data based on the schema structure.
+// This function now uses the telemetry.MetricName type for keys.
+func (t TSSchema[T]) GenerateDummyData(predefinedValues PredefinedValues[T]) map[string]map[string][]map[string]float64 {
+	dummyData := make(map[string]map[string][]map[string]float64)
+
+	for tableName, measures := range t.Schema {
+		if _, exists := dummyData[tableName]; !exists {
+			dummyData[tableName] = make(map[string][]map[string]float64)
+		}
+
+		for measureName, metricNames := range measures {
+			for _, metricName := range metricNames {
+				var value float64
+				if predefinedValue, ok := predefinedValues[metricName]; ok {
+					value = predefinedValue
+				} else {
+					value = rand.Float64() * 100 // Adjust the range as needed
+				}
+
+				// Here, we create a map for each metric name to its value and append it to the slice.
+				metricData := map[string]float64{fmt.Sprintf("%v", metricName): value}
+				dummyData[tableName][measureName] = append(dummyData[tableName][measureName], metricData)
+			}
+		}
+	}
+	return dummyData
 }
