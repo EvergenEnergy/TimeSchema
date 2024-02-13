@@ -2,7 +2,11 @@ package timestream
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
+	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite/types"
 	"math/rand"
+	"time"
 )
 
 // Schema represents a mapping from table names to measure names and then to
@@ -74,28 +78,61 @@ type PredefinedValues[T comparable] map[T]float64
 
 // GenerateDummyData generates dummy data based on the schema structure.
 // This function now uses the telemetry.MetricName type for keys.
-func (t TSSchema[T]) GenerateDummyData(predefinedValues PredefinedValues[T]) map[string]map[string][]map[string]float64 {
-	dummyData := make(map[string]map[string][]map[string]float64)
+func (t TSSchema[T]) GenerateDummyData(db string, time time.Time, predefinedValues PredefinedValues[T]) WriteRecords {
+	var writeInputs []*timestreamwrite.WriteRecordsInput
 
 	for tableName, measures := range t.Schema {
-		if _, exists := dummyData[tableName]; !exists {
-			dummyData[tableName] = make(map[string][]map[string]float64)
+		writeInput := &timestreamwrite.WriteRecordsInput{
+			DatabaseName: aws.String(db),
+			CommonAttributes: &types.Record{
+				MeasureValueType: types.MeasureValueTypeMulti,
+				TimeUnit:         types.TimeUnitSeconds,
+			},
 		}
+		var records []types.Record
 
 		for measureName, metricNames := range measures {
+			record := types.Record{
+				MeasureName:      aws.String(fmt.Sprintf("%v", measureName)), // Convert measure name to *string
+				MeasureValueType: types.MeasureValueTypeMulti,
+				Time:             aws.String(fmt.Sprintf("%d", time.UnixMilli())),
+			}
+			measureValues := make([]types.MeasureValue, 0, len(metricNames))
 			for _, metricName := range metricNames {
-				var value float64
+				var value string
 				if predefinedValue, ok := predefinedValues[metricName]; ok {
-					value = predefinedValue
+					value = fmt.Sprintf("%f", predefinedValue) // Convert float64 to string
 				} else {
-					value = rand.Float64() * 100 // Adjust the range as needed
+					value = fmt.Sprintf("%f", rand.Float64()*100) // Adjust the range as needed and convert to string
 				}
+				measureValues = append(measureValues, types.MeasureValue{
+					Name:  aws.String(fmt.Sprintf("%v", metricName)),
+					Value: aws.String(value),
+					Type:  types.MeasureValueTypeDouble,
+				})
 
-				// Here, we create a map for each metric name to its value and append it to the slice.
-				metricData := map[string]float64{fmt.Sprintf("%v", metricName): value}
-				dummyData[tableName][measureName] = append(dummyData[tableName][measureName], metricData)
+			}
+			// Create a record for each metric.
+			record.MeasureValues = measureValues
+			records = append(records, record)
+		}
+
+		writeInput.TableName = aws.String(tableName)
+		writeInput.Records = records
+		writeInputs = append(writeInputs, writeInput)
+	}
+	return writeInputs
+}
+
+type WriteRecords []*timestreamwrite.WriteRecordsInput
+
+func (w WriteRecords) RecordsForMeasure(measureName string) *timestreamwrite.WriteRecordsInput {
+	for _, writeInput := range w {
+		for _, record := range writeInput.Records {
+			if *record.MeasureName == measureName {
+				return writeInput
 			}
 		}
 	}
-	return dummyData
+	return nil
 }

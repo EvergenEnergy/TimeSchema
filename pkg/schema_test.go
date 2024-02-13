@@ -2,7 +2,10 @@ package timestream_test
 
 import (
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite/types"
 	"testing"
+	"time"
 
 	timestream "github.com/EvergenEnergy/TimeSchema/pkg"
 	"github.com/stretchr/testify/assert"
@@ -159,14 +162,16 @@ func TestTSSchema_GetMeasureNameForReturnsErr(t *testing.T) {
 }
 
 func TestTSSchema_GenerateDummyData(t1 *testing.T) {
+	now := time.Now()
 	type args[T comparable] struct {
+		dbName           string
 		predefinedValues timestream.PredefinedValues[string]
 	}
 	type testCase[T comparable] struct {
 		name string
 		t    timestream.TSSchema[T]
 		args args[T]
-		want map[string]map[string][]map[string]float64
+		want timestream.WriteRecords
 	}
 	tests := []testCase[string]{
 		{
@@ -179,7 +184,7 @@ func TestTSSchema_GenerateDummyData(t1 *testing.T) {
 						"measure_3": {"metric_5", "metric_6", "metric_7"},
 					},
 				}),
-			args: args[string]{predefinedValues: timestream.PredefinedValues[string]{
+			args: args[string]{dbName: "my-db", predefinedValues: timestream.PredefinedValues[string]{
 				"metric_1": 1,
 				"metric_2": 2,
 				"metric_3": 3,
@@ -188,20 +193,89 @@ func TestTSSchema_GenerateDummyData(t1 *testing.T) {
 				"metric_6": 6,
 				"metric_7": 7,
 			}},
-			want: map[string]map[string][]map[string]float64{
-				"table_1": {
-					"measure_1": {{"metric_1": 1}, {"metric_2": 2}},
+			want: timestream.WriteRecords{
+				{
+					DatabaseName: aws.String("my-db"),
+					TableName:    aws.String("table_1"),
+					CommonAttributes: &types.Record{
+						MeasureValueType: types.MeasureValueTypeMulti,
+						TimeUnit:         types.TimeUnitSeconds,
+					},
+					Records: []types.Record{
+						{
+							MeasureName:      aws.String("measure_1"),
+							MeasureValueType: types.MeasureValueTypeMulti,
+							MeasureValues: []types.MeasureValue{
+								{
+									Name:  aws.String("metric_1"),
+									Type:  types.MeasureValueTypeDouble,
+									Value: aws.String("1.000000"),
+								},
+								{
+									Name:  aws.String("metric_2"),
+									Type:  types.MeasureValueTypeDouble,
+									Value: aws.String("2.000000"),
+								},
+							},
+							Time: aws.String(fmt.Sprintf("%d", now.UnixMilli())),
+						},
+					},
 				},
-				"table_2": {
-					"measure_2": {{"metric_3": 3}, {"metric_4": 4}},
-					"measure_3": {{"metric_5": 5}, {"metric_6": 6}, {"metric_7": 7}},
+				{
+					DatabaseName: aws.String("my-db"),
+					TableName:    aws.String("table_2"),
+					CommonAttributes: &types.Record{
+						MeasureValueType: types.MeasureValueTypeMulti,
+						TimeUnit:         types.TimeUnitSeconds,
+					},
+					Records: []types.Record{
+						{
+							MeasureName:      aws.String("measure_2"),
+							MeasureValueType: types.MeasureValueTypeMulti,
+							MeasureValues: []types.MeasureValue{
+								{
+									Name:  aws.String("metric_3"),
+									Type:  types.MeasureValueTypeDouble,
+									Value: aws.String("3.000000"),
+								},
+								{
+									Name:  aws.String("metric_4"),
+									Type:  types.MeasureValueTypeDouble,
+									Value: aws.String("4.000000"),
+								},
+							},
+							Time: aws.String(fmt.Sprintf("%d", now.UnixMilli())),
+						},
+						{
+							MeasureName:      aws.String("measure_3"),
+							MeasureValueType: types.MeasureValueTypeMulti,
+							MeasureValues: []types.MeasureValue{
+								{
+									Name:  aws.String("metric_5"),
+									Type:  types.MeasureValueTypeDouble,
+									Value: aws.String("5.000000"),
+								},
+								{
+									Name:  aws.String("metric_6"),
+									Type:  types.MeasureValueTypeDouble,
+									Value: aws.String("6.000000"),
+								},
+								{
+									Name:  aws.String("metric_7"),
+									Type:  types.MeasureValueTypeDouble,
+									Value: aws.String("7.000000"),
+								},
+							},
+							Time: aws.String(fmt.Sprintf("%d", now.UnixMilli())),
+						},
+					},
 				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t1.Run(tt.name, func(t1 *testing.T) {
-			assert.Equalf(t1, tt.want, tt.t.GenerateDummyData(tt.args.predefinedValues), "GenerateDummyData(%v)", tt.args.predefinedValues)
+			assert.Equalf(t1, tt.want, tt.t.GenerateDummyData(tt.args.dbName, now, tt.args.predefinedValues), "GenerateDummyData(%v)", tt.args.predefinedValues)
 		})
 	}
 }
@@ -219,39 +293,107 @@ func TestTSSchema_GenerateDummyData_NoPredefinedValues(t *testing.T) {
 	// No predefined values
 	predefinedValues := timestream.PredefinedValues[string]{}
 
-	got := tsSchema.GenerateDummyData(predefinedValues)
+	got := tsSchema.GenerateDummyData("my_db", time.Now(), predefinedValues)
 
 	// Assert that all expected tables, measures, and metrics exist and have generated data
-	for tableName, measures := range schema {
-		if _, ok := got[tableName]; !ok {
-			t.Errorf("Missing table: %s", tableName)
-			continue
-		}
+	assert.Len(t, got, 2)
+	assert.Equal(t, "table_1", *got[0].TableName)
+	assert.Equal(t, "table_2", *got[1].TableName)
+	assert.Len(t, got[0].Records, 1)
+	assert.Len(t, got[1].Records, 2)
+	assert.Len(t, got[0].Records[0].MeasureValues, 2)
+	assert.Len(t, got[1].Records[0].MeasureValues, 2)
+	assert.Len(t, got[1].Records[1].MeasureValues, 3)
+	assert.NotNil(t, got[0].Records[0].MeasureValues[0].Value)
+	assert.NotNil(t, got[0].Records[0].MeasureValues[1].Value)
+}
 
-		for measureName, metricNames := range measures {
-			generatedMeasure, ok := got[tableName][measureName]
-			if !ok {
-				t.Errorf("Missing measure: %s in table %s", measureName, tableName)
-				continue
-			}
-
-			if len(generatedMeasure) != len(metricNames) {
-				t.Errorf("Generated measure data length mismatch: got %d, want %d for measure %s in table %s", len(generatedMeasure), len(metricNames), measureName, tableName)
-			}
-
-			// Assert that there is some generated value for each metric
-			for _, metricName := range metricNames {
-				found := false
-				for _, metricData := range generatedMeasure {
-					if _, exists := metricData[fmt.Sprintf("%v", metricName)]; exists {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("Missing generated data for metric %s in measure %s of table %s", metricName, measureName, tableName)
-				}
-			}
-		}
+func TestRecordsForMeasure(t *testing.T) {
+	writeRecords := timestream.WriteRecords{
+		{
+			DatabaseName: aws.String("my-db"),
+			TableName:    aws.String("table_1"),
+			CommonAttributes: &types.Record{
+				MeasureValueType: types.MeasureValueTypeMulti,
+				TimeUnit:         types.TimeUnitSeconds,
+			},
+			Records: []types.Record{
+				{
+					MeasureName:      aws.String("measure_1"),
+					MeasureValueType: types.MeasureValueTypeMulti,
+					MeasureValues: []types.MeasureValue{
+						{
+							Name:  aws.String("metric_1"),
+							Type:  types.MeasureValueTypeDouble,
+							Value: aws.String("1.000000"),
+						},
+						{
+							Name:  aws.String("metric_2"),
+							Type:  types.MeasureValueTypeDouble,
+							Value: aws.String("2.000000"),
+						},
+					},
+					Time: aws.String(fmt.Sprintf("%d", now.UnixMilli())),
+				},
+			},
+		},
+		{
+			DatabaseName: aws.String("my-db"),
+			TableName:    aws.String("table_2"),
+			CommonAttributes: &types.Record{
+				MeasureValueType: types.MeasureValueTypeMulti,
+				TimeUnit:         types.TimeUnitSeconds,
+			},
+			Records: []types.Record{
+				{
+					MeasureName:      aws.String("measure_2"),
+					MeasureValueType: types.MeasureValueTypeMulti,
+					MeasureValues: []types.MeasureValue{
+						{
+							Name:  aws.String("metric_3"),
+							Type:  types.MeasureValueTypeDouble,
+							Value: aws.String("3.000000"),
+						},
+						{
+							Name:  aws.String("metric_4"),
+							Type:  types.MeasureValueTypeDouble,
+							Value: aws.String("4.000000"),
+						},
+					},
+					Time: aws.String(fmt.Sprintf("%d", now.UnixMilli())),
+				},
+				{
+					MeasureName:      aws.String("measure_3"),
+					MeasureValueType: types.MeasureValueTypeMulti,
+					MeasureValues: []types.MeasureValue{
+						{
+							Name:  aws.String("metric_5"),
+							Type:  types.MeasureValueTypeDouble,
+							Value: aws.String("5.000000"),
+						},
+						{
+							Name:  aws.String("metric_6"),
+							Type:  types.MeasureValueTypeDouble,
+							Value: aws.String("6.000000"),
+						},
+						{
+							Name:  aws.String("metric_7"),
+							Type:  types.MeasureValueTypeDouble,
+							Value: aws.String("7.000000"),
+						},
+					},
+					Time: aws.String(fmt.Sprintf("%d", now.UnixMilli())),
+				},
+			},
+		},
 	}
+	got := writeRecords.RecordsForMeasure("measure_1")
+
+	assert.NotNil(t, got)
+	assert.Len(t, got.Records, 1)
+	assert.Equal(t, "measure_1", *got.Records[0].MeasureName)
+	assert.Equal(t, "metric_1", *got.Records[0].MeasureValues[0].Name)
+	assert.Equal(t, "1.000000", *got.Records[0].MeasureValues[0].Value)
+	assert.Equal(t, "metric_2", *got.Records[0].MeasureValues[1].Name)
+	assert.Equal(t, "2.000000", *got.Records[0].MeasureValues[1].Value)
 }
