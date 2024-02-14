@@ -119,8 +119,16 @@ func (t TSSchema[T1, T2]) GenerateDummyData(db string, time time.Time, predefine
 				})
 
 			}
+			dimensionValues := make([]types.Dimension, 0, len(metricNames.Dimensions))
+			for _, dimensionName := range metricNames.Dimensions {
+				dimensionValues = append(dimensionValues, types.Dimension{
+					Name:  aws.String(fmt.Sprintf("%v", dimensionName)),
+					Value: aws.String("dummy"),
+				})
+			}
 			// Create a record for each metric.
 			record.MeasureValues = measureValues
+			record.Dimensions = dimensionValues
 			records = append(records, record)
 		}
 

@@ -192,10 +192,10 @@ func TestTSSchema_GenerateDummyData(t1 *testing.T) {
 			name: "Test generates dummy data",
 			t: timestream.NewTSSchema[string, string](
 				timestream.Schema[string, string]{
-					"table_1": {"measure_1": {MetricNames: []string{"metric_1", "metric_2"}}},
+					"table_1": {"measure_1": {Dimensions: []string{"dimension_1"}, MetricNames: []string{"metric_1", "metric_2"}}},
 					"table_2": {
-						"measure_2": {MetricNames: []string{"metric_3", "metric_4"}},
-						"measure_3": {MetricNames: []string{"metric_5", "metric_6", "metric_7"}},
+						"measure_2": {Dimensions: []string{"dimension_2", "dimension_3"}, MetricNames: []string{"metric_3", "metric_4"}},
+						"measure_3": {Dimensions: []string{"dimension_4"}, MetricNames: []string{"metric_5", "metric_6", "metric_7"}},
 					},
 				}),
 			args: args[string]{dbName: "my-db", predefinedValues: timestream.PredefinedValues[string]{
@@ -217,6 +217,12 @@ func TestTSSchema_GenerateDummyData(t1 *testing.T) {
 					},
 					Records: []types.Record{
 						{
+							Dimensions: []types.Dimension{
+								{
+									Name:  aws.String("dimension_1"),
+									Value: aws.String("dummy"),
+								},
+							},
 							MeasureName:      aws.String("measure_1"),
 							MeasureValueType: types.MeasureValueTypeMulti,
 							MeasureValues: []types.MeasureValue{
@@ -244,6 +250,16 @@ func TestTSSchema_GenerateDummyData(t1 *testing.T) {
 					},
 					Records: []types.Record{
 						{
+							Dimensions: []types.Dimension{
+								{
+									Name:  aws.String("dimension_2"),
+									Value: aws.String("dummy"),
+								},
+								{
+									Name:  aws.String("dimension_3"),
+									Value: aws.String("dummy"),
+								},
+							},
 							MeasureName:      aws.String("measure_2"),
 							MeasureValueType: types.MeasureValueTypeMulti,
 							MeasureValues: []types.MeasureValue{
@@ -261,6 +277,12 @@ func TestTSSchema_GenerateDummyData(t1 *testing.T) {
 							Time: aws.String(fmt.Sprintf("%d", now.UnixMilli())),
 						},
 						{
+							Dimensions: []types.Dimension{
+								{
+									Name:  aws.String("dimension_4"),
+									Value: aws.String("dummy"),
+								},
+							},
 							MeasureName:      aws.String("measure_3"),
 							MeasureValueType: types.MeasureValueTypeMulti,
 							MeasureValues: []types.MeasureValue{
