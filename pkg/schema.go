@@ -92,7 +92,7 @@ func (t TSSchema[T1, T2]) GenerateDummyData(db string, time time.Time, predefine
 			DatabaseName: aws.String(db),
 			CommonAttributes: &types.Record{
 				MeasureValueType: types.MeasureValueTypeMulti,
-				TimeUnit:         types.TimeUnitSeconds,
+				TimeUnit:         types.TimeUnitMilliseconds,
 			},
 		}
 		var records []types.Record
