@@ -84,7 +84,6 @@ func (s TSSchema[T1, T2]) GetTableNameFor(metricName T2) (string, error) {
 type PredefinedValues[T comparable] map[T]float64
 
 // GenerateDummyData generates dummy data based on the schema structure.
-// This function now uses the telemetry.MetricName type for keys.
 func (t TSSchema[T1, T2]) GenerateDummyData(db string, time time.Time, predefinedValues PredefinedValues[T2]) WriteRecords {
 	var writeInputs []*timestreamwrite.WriteRecordsInput
 
