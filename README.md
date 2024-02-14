@@ -98,23 +98,80 @@ import (
 )
 
 func main() {
-template := "SELECT * FROM :tableName WHERE name = :name AND timestamp = :timestamp AND id = :id"
-params := map[string]interface{}{
-"name":      "test",
-"timestamp": time.Now(),
-"id":        123,
-"tableName": timeschema.TableName("my_table"),
-}
-
-query, err := timeschema.BuildQuery(template, params)
-if err != nil {
-// handle error
-}
-
-// Use query with AWS Timestream
+    template := "SELECT * FROM :tableName WHERE name = :name AND timestamp = :timestamp AND id = :id"
+    params := map[string]interface{}{
+        "name":      "test",
+        "timestamp": time.Now(),
+        "id":        123,
+        "tableName": timeschema.TableName("my_table"),
+    }
+    
+    query, err := timeschema.BuildQuery(template, params)
+    if err != nil {
+    // handle error
+    }
+    
+    // Use query with AWS Timestream
 }
 ```
 
+## Enhanced Schema Management with Dimensions and Dummy Data Generation
+
+TimeSchema now supports an advanced schema definition that includes dimensions alongside metric names, enabling more comprehensive data modeling for AWS Timestream. Additionally, the library offers functionality to generate dummy data based on the defined schema, facilitating testing and development with realistic data scenarios.
+
+### Defining a Schema with Dimensions
+
+Define your Timestream schema using generic types for flexibility. This allows for defining dimensions and metrics within your schema, providing a structured approach to data representation.
+
+**Example:**
+```go
+import (
+timestream "github.com/EvergenEnergy/TimeSchema"
+)
+
+// Define your schema
+schema := timestream.Schema[string, string]{
+    "YourTableName": {
+        "YourMeasureName": {
+            Dimensions:  []string{"Dimension1", "Dimension2"},
+            MetricNames: []string{"Metric1", "Metric2"},
+        },
+    },
+}
+
+// Initialize a new TSSchema instance with the defined schema
+tsSchema := timestream.NewTSSchema(schema)
+```
+This schema definition allows you to clearly specify which dimensions and metrics are associated with each measure within a table, enhancing the clarity and maintainability of your Timestream data models.
+
+### Generating Dummy Data
+
+Easily generate dummy data for testing or development purposes based on your schema. This feature supports predefined values for metrics, or randomly generated data where no predefined values are specified.
+
+**Example:**
+```go
+import (
+    "time"
+    timestream "github.com/EvergenEnergy/TimeSchema"
+)
+
+// Assuming tsSchema is your TSSchema instance and schema is defined as above
+predefinedValues := timestream.PredefinedValues[string]{
+    "Metric1": 100,
+    "Metric2": 200,
+    // Add more predefined metrics if necessary
+}
+
+// Generate dummy data
+now := time.Now() // Specify the current time or any timestamp you need
+dbName := "YourDatabaseName"
+dummyData := tsSchema.GenerateDummyData(dbName, now, predefinedValues)
+
+// dummyData is now populated with WriteRecordsInput instances that can be used with AWS Timestream
+
+```
+
+The `GenerateDummyData` method allows for the creation of data entries that match the structure of your defined schema, making it an invaluable tool for simulating real-world data ingestion and processing workflows.
 
 ### Installation
 
