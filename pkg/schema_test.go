@@ -213,7 +213,7 @@ func TestTSSchema_GenerateDummyData(t1 *testing.T) {
 					TableName:    aws.String("table_1"),
 					CommonAttributes: &types.Record{
 						MeasureValueType: types.MeasureValueTypeMulti,
-						TimeUnit:         types.TimeUnitSeconds,
+						TimeUnit:         types.TimeUnitMilliseconds,
 					},
 					Records: []types.Record{
 						{
@@ -246,7 +246,7 @@ func TestTSSchema_GenerateDummyData(t1 *testing.T) {
 					TableName:    aws.String("table_2"),
 					CommonAttributes: &types.Record{
 						MeasureValueType: types.MeasureValueTypeMulti,
-						TimeUnit:         types.TimeUnitSeconds,
+						TimeUnit:         types.TimeUnitMilliseconds,
 					},
 					Records: []types.Record{
 						{
