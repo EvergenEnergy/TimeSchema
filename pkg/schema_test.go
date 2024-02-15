@@ -223,8 +223,7 @@ func TestTSSchema_GenerateDummyData(t1 *testing.T) {
 									Value: aws.String("dummy"),
 								},
 							},
-							MeasureName:      aws.String("measure_1"),
-							MeasureValueType: types.MeasureValueTypeMulti,
+							MeasureName: aws.String("measure_1"),
 							MeasureValues: []types.MeasureValue{
 								{
 									Name:  aws.String("metric_1"),
@@ -260,8 +259,7 @@ func TestTSSchema_GenerateDummyData(t1 *testing.T) {
 									Value: aws.String("dummy"),
 								},
 							},
-							MeasureName:      aws.String("measure_2"),
-							MeasureValueType: types.MeasureValueTypeMulti,
+							MeasureName: aws.String("measure_2"),
 							MeasureValues: []types.MeasureValue{
 								{
 									Name:  aws.String("metric_3"),
@@ -283,8 +281,7 @@ func TestTSSchema_GenerateDummyData(t1 *testing.T) {
 									Value: aws.String("dummy"),
 								},
 							},
-							MeasureName:      aws.String("measure_3"),
-							MeasureValueType: types.MeasureValueTypeMulti,
+							MeasureName: aws.String("measure_3"),
 							MeasureValues: []types.MeasureValue{
 								{
 									Name:  aws.String("metric_5"),

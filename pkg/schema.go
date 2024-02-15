@@ -99,9 +99,8 @@ func (t TSSchema[T1, T2]) GenerateDummyData(db string, time time.Time, predefine
 
 		for measureName, metricNames := range measures {
 			record := types.Record{
-				MeasureName:      aws.String(fmt.Sprintf("%v", measureName)), // Convert measure name to *string
-				MeasureValueType: types.MeasureValueTypeMulti,
-				Time:             aws.String(fmt.Sprintf("%d", time.UnixMilli())),
+				MeasureName: aws.String(fmt.Sprintf("%v", measureName)), // Convert measure name to *string
+				Time:        aws.String(fmt.Sprintf("%d", time.UnixMilli())),
 			}
 			measureValues := make([]types.MeasureValue, 0, len(metricNames.MetricNames))
 			for _, metricName := range metricNames.MetricNames {
