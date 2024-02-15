@@ -228,6 +228,28 @@ func TestUnmarshalUnhappyPath(t *testing.T) {
 				Timestamp int `timestream:"time"`
 			}{Timestamp: 1234567890},
 		},
+		{
+			name: "Returns error when column specified in struct tag is not found in Timestream data",
+			record: &timestreamquery.QueryOutput{
+				ColumnInfo: []types.ColumnInfo{
+					// Include some column info, but omit the one expected by the struct
+					{Type: &types.Type{ScalarType: types.ScalarTypeTimestamp}, Name: aws.String("time")},
+					{Type: &types.Type{ScalarType: types.ScalarTypeVarchar}, Name: aws.String("dimension_name")},
+					// Omit the "modelled_generation" column to trigger the error
+				},
+				Rows: []types.Row{{Data: []types.Datum{
+					{ScalarValue: aws.String("2024-01-08 02:32:04.000000000")},
+					{ScalarValue: aws.String("A dimension name")},
+					// Omit the data for the "modelled_generation" column
+				}}},
+				QueryId: aws.String("AEHQCANRQXMATV22GTB2SD4PTDZISJMXF2CBU767QOYCDD2KPCUNRT2IB4REZAI"),
+			},
+			target: &struct {
+				Timestamp time.Time `timestream:"time"`
+				Name      string    `timestream:"name=dimension_name"`
+				Energy    float64   `timestream:"name=modelled_generation"` // This column is missing in QueryOutput
+			}{},
+		},
 	}
 
 	for _, tt := range tests {
