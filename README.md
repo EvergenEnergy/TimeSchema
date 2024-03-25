@@ -7,6 +7,7 @@ TimeSchema is a Go library tailored for interacting with AWS Timestream, offerin
 
 ## Features
 - **Data Marshalling**: Convert Go structs to AWS Timestream records with ease, using struct tags for precise field mapping.
+- Supports specifying time units (seconds, milliseconds, nanoseconds) for `time.Time` fields in structs.
 - **Data Unmarshalling**: Seamlessly decode AWS Timestream query outputs into Go structs or slices of structs.
 - **Query Building**: Dynamically construct SQL queries for Timestream with named placeholders and a variety of data types.
 - **Schema Management**: Utilize generic types for flexible and efficient schema definitions in AWS Timestream.
@@ -30,6 +31,7 @@ type MyData struct {
     SensorName   string    `timestream:"measure"`
     Location     string    `timestream:"dimension,name=location"`
     Temperature  float64   `timestream:"attribute,name=temperature"`
+    EventTime    time.Time `timestream:"attribute,name=eventTime,unit=ms"`
 }
 
 func main() {
@@ -38,6 +40,7 @@ func main() {
         SensorName:   "Sensor1",
         Location:     "Room1",
         Temperature:  23.5,
+        EventTime:    time.Now(),
     }
 
     record, err := timeschema.Marshal(data)

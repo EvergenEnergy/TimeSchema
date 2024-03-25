@@ -38,6 +38,8 @@ const (
 //     Optionally, a 'name' can be specified (e.g., `timestream:"dimension,name=customName"`).
 //   - "attribute": Represents measure values. Multiple measure values are supported.
 //     The field can be of a primitive type (string, int, float).
+//     For `time.Time` fields, you can specify the unit of time (s for seconds, ms for milliseconds, ns for nanoseconds)
+//     to format the timestamp accordingly, e.g., `timestream:"attribute,name=timestamp,unit=ms"`.
 //   - "omitempty": This tag can only be applied to string fields. Fields with this tag
 //     are omitted if they are empty strings. For non-string fields, this tag will
 //     cause an error during marshalling. It is intended to reduce data size and handle
@@ -53,6 +55,7 @@ const (
 //	    SensorName  string    `timestream:"measureName"`
 //	    Location    string    `timestream:"dimension,name=location"`
 //	    Temperature float64   `timestream:"attribute,name=temperature,omitempty"`
+//		EventTime   time.Time `timestream:"attribute,name=eventTime,unit=ms"`
 //	}
 //
 // Note: This function uses reflection to inspect struct fields. Fields with unsupported
@@ -78,6 +81,7 @@ const (
 //	    SensorName:  "Sensor1",
 //	    Location:    "Room1",
 //	    Temperature: 23.5,
+//		EventTime:   time.Now(),
 //	}
 //	record, err := Marshal(data)
 //	if err != nil {
@@ -160,7 +164,7 @@ func handleRecord(record *types.Record, val reflect.Value, i int, tag string) er
 		dimensionName := val.Field(i).Interface().(string)
 		record.Dimensions = append(record.Dimensions, types.Dimension{Name: &tagName, Value: aws.String(dimensionName)})
 	case attribute:
-		measureValue, err := handleMeasureValue(tagName, val.Field(i), omitempty)
+		measureValue, err := handleMeasureValue(tagName, tag, val.Field(i), omitempty)
 		if err != nil {
 			return err
 		}
@@ -171,7 +175,7 @@ func handleRecord(record *types.Record, val reflect.Value, i int, tag string) er
 	return nil
 }
 
-func handleMeasureValue(tagName string, fieldValue reflect.Value, omitEmpty bool) (types.MeasureValue, error) {
+func handleMeasureValue(tagName, tag string, fieldValue reflect.Value, omitEmpty bool) (types.MeasureValue, error) {
 	var measureValue types.MeasureValue
 
 	// Check for zero value and omitEmpty
@@ -189,9 +193,30 @@ func handleMeasureValue(tagName string, fieldValue reflect.Value, omitEmpty bool
 			if !ok {
 				return types.MeasureValue{}, fmt.Errorf("field is not a time.Time")
 			}
-			// Format the time as unixtime, as this is expected by Timestream
-			measureValue.Value = aws.String(strconv.FormatInt(timeValue.Unix(), 10))
+			// Extract unit from tag, default to milliseconds
+			unit := "s"
+			tagParts := strings.Split(tag, ",")
+			for _, part := range tagParts {
+				if strings.HasPrefix(part, "unit=") {
+					unit = strings.TrimPrefix(part, "unit=")
+					break
+				}
+			}
+
+			// Convert time based on unit
+			switch unit {
+			case "s":
+				measureValue.Value = aws.String(strconv.FormatInt(timeValue.Unix(), 10))
+			case "ms":
+				measureValue.Value = aws.String(strconv.FormatInt(timeValue.UnixMilli(), 10))
+			case "ns":
+				measureValue.Value = aws.String(strconv.FormatInt(timeValue.UnixNano(), 10))
+			default:
+				return types.MeasureValue{}, fmt.Errorf("unsupported unit for time: %s", unit)
+			}
+
 			measureValue.Type = types.MeasureValueTypeTimestamp
+			return measureValue, nil
 		} else {
 			return types.MeasureValue{}, fmt.Errorf("unsupported struct type for measureValue")
 		}
