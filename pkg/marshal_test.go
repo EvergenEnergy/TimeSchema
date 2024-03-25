@@ -151,6 +151,16 @@ func TestMarshalUnhappyPath(t *testing.T) {
 			}{MeasureName: "measure_name", Dimension: "dimension_name", MeasureValue: "measure_value"},
 		},
 		{
+			name: "Returns err if using bad units",
+			args: struct {
+				Timestamp    time.Time `timestream:"timestamp"`
+				MeasureName  string    `timestream:"measureName"`
+				Dimension    string    `timestream:"dimension"`
+				MeasureValue string    `timestream:"attribute"`
+				BadTime      time.Time `timestream:"badTime",unit=bad-unit`
+			}{Timestamp: now, MeasureName: "measure_name", Dimension: "dimension_name", MeasureValue: "measure_value", BadTime: now},
+		},
+		{
 			name: "Returns err if omitempty on non-string",
 			args: struct {
 				Timestamp    time.Time `timestream:"timestamp"`
@@ -158,6 +168,16 @@ func TestMarshalUnhappyPath(t *testing.T) {
 				Dimension    string    `timestream:"dimension"`
 				MeasureValue float64   `timestream:"attribute,name=SomeName,omitempty"`
 			}{MeasureName: "measure_name", Dimension: "dimension_name", Timestamp: now},
+		},
+		{
+			name: "Returns err if repeated tags",
+			args: struct {
+				Timestamp     time.Time `timestream:"timestamp"`
+				MeasureName   string    `timestream:"measureName"`
+				Dimension     string    `timestream:"dimension"`
+				MeasureValue  string    `timestream:"attribute,name=SomeName"`
+				MeasureValue2 string    `timestream:"attribute,name=SomeName"`
+			}{MeasureName: "measure_name", Dimension: "dimension_name", Timestamp: now, MeasureValue: "foo", MeasureValue2: "bar"},
 		},
 		{
 			name: "Returns err if timestamp is not time.Time",
