@@ -127,6 +127,7 @@ func TestMarshal(t *testing.T) {
 }
 
 func TestMarshalUnhappyPath(t *testing.T) {
+
 	tests := []struct {
 		name string
 		args any
@@ -157,7 +158,7 @@ func TestMarshalUnhappyPath(t *testing.T) {
 				MeasureName  string    `timestream:"measureName"`
 				Dimension    string    `timestream:"dimension"`
 				MeasureValue string    `timestream:"attribute"`
-				BadTime      time.Time `timestream:"badTime",unit=bad-unit`
+				BadTime      time.Time `timestream:"attribute,name=badTime,unit=bad-unit"`
 			}{Timestamp: now, MeasureName: "measure_name", Dimension: "dimension_name", MeasureValue: "measure_value", BadTime: now},
 		},
 		{
@@ -178,6 +179,17 @@ func TestMarshalUnhappyPath(t *testing.T) {
 				MeasureValue  string    `timestream:"attribute,name=SomeName"`
 				MeasureValue2 string    `timestream:"attribute,name=SomeName"`
 			}{MeasureName: "measure_name", Dimension: "dimension_name", Timestamp: now, MeasureValue: "foo", MeasureValue2: "bar"},
+		},
+		{
+			name: "Returns err if using a struct other than time",
+			args: struct {
+				Timestamp              time.Time `timestream:"timestamp"`
+				MeasureName            string    `timestream:"measureName"`
+				Dimension              string    `timestream:"dimension"`
+				UnsupportedStructField struct {
+					SomeField string
+				} `timestream:"attribute,name=SomeName"`
+			}{MeasureName: "measure_name", Dimension: "dimension_name", Timestamp: now, UnsupportedStructField: struct{SomeField string}{SomeField: "field"}},
 		},
 		{
 			name: "Returns err if timestamp is not time.Time",
