@@ -2,11 +2,12 @@ package timestream
 
 import (
 	"fmt"
+	"math/rand"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
 	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite/types"
-	"math/rand"
-	"time"
 )
 
 // Schema represents a mapping from table names to measure names and then to
@@ -14,12 +15,14 @@ import (
 // type, allowing for flexibility in defining metric names.
 type Schema[T1 comparable, T2 comparable] map[Table]map[MeasureName]Record[T1, T2]
 
-type Table string
-type MeasureName string
-type Record[T1 comparable, T2 comparable] struct {
-	Dimensions  []T1
-	MetricNames []T2
-}
+type (
+	Table                                string
+	MeasureName                          string
+	Record[T1 comparable, T2 comparable] struct {
+		Dimensions  []T1
+		MetricNames []T2
+	}
+)
 
 type invertedSchema[T comparable] map[T]struct {
 	measureName string
@@ -38,11 +41,11 @@ type TSSchema[T1 comparable, T2 comparable] struct {
 // NewTSSchema initialises a new TSSchema instance from the given Schema.
 // The schema parameter is a mapping from table names to measure names and
 // then to metric names of the generic type T.
-func NewTSSchema[T1 comparable, T2 comparable](schema Schema[T1, T2]) TSSchema[T1, T2] {
+func NewTSSchema[T1, T2 comparable](schema Schema[T1, T2]) TSSchema[T1, T2] {
 	return TSSchema[T1, T2]{Schema: schema, invertedSchema: invertSchema[T1, T2](schema)}
 }
 
-func invertSchema[T1 comparable, T2 comparable](schema Schema[T1, T2]) invertedSchema[T2] {
+func invertSchema[T1, T2 comparable](schema Schema[T1, T2]) invertedSchema[T2] {
 	inverted := make(invertedSchema[T2])
 
 	for tableName, measures := range schema {

@@ -14,10 +14,9 @@ import (
 )
 
 var (
-	now                  = time.Now()
-	arrivalTime          = now.Add(1 * time.Second)
-	formattedNow         = fmt.Sprintf("%d", now.UnixMilli())
-	formattedArrivalTime = fmt.Sprintf("%d", arrivalTime.Unix())
+	now          = time.Now()
+	arrivalTime  = now.Add(1 * time.Second)
+	formattedNow = fmt.Sprintf("%d", now.UnixMilli())
 )
 
 func TestMarshal(t *testing.T) {
@@ -38,6 +37,9 @@ func TestMarshal(t *testing.T) {
 				MeasureValueInt    int       `timestream:"attribute,name=measureValueInt"`
 				EmptyString        string    `timestream:"attribute,name=emptyString"`
 				ArrivalTime        time.Time `timestream:"attribute,name=arrivalTime"`
+				ArrivalTimeMS      time.Time `timestream:"attribute,name=arrivalTimeMs,unit=ms"`
+				ArrivalTimeNS      time.Time `timestream:"attribute,name=arrivalTimeNs,unit=ns"`
+				ArrivalTimeS       time.Time `timestream:"attribute,name=arrivalTimeS,unit=s"`
 				OmitEmpty          string    `timestream:"attribute,name=omitEmptyColumn,omitempty"`
 				IgnorableString    string
 			}{
@@ -49,6 +51,9 @@ func TestMarshal(t *testing.T) {
 				MeasureValueFloat:  123.00,
 				MeasureValueInt:    123,
 				ArrivalTime:        arrivalTime,
+				ArrivalTimeMS:      arrivalTime,
+				ArrivalTimeNS:      arrivalTime,
+				ArrivalTimeS:       arrivalTime,
 			},
 			want: []types.Record{{
 				Time: &formattedNow,
@@ -61,7 +66,10 @@ func TestMarshal(t *testing.T) {
 					{Name: aws.String("measureValueFloat"), Value: aws.String("123.000000"), Type: types.MeasureValueTypeDouble},
 					{Name: aws.String("measureValueInt"), Value: aws.String("123"), Type: types.MeasureValueTypeBigint},
 					{Name: aws.String("emptyString"), Value: aws.String("-"), Type: types.MeasureValueTypeVarchar},
-					{Name: aws.String("arrivalTime"), Value: aws.String(formattedArrivalTime), Type: types.MeasureValueTypeTimestamp},
+					{Name: aws.String("arrivalTime"), Value: aws.String(fmt.Sprintf("%d", arrivalTime.Unix())), Type: types.MeasureValueTypeTimestamp},
+					{Name: aws.String("arrivalTimeMs"), Value: aws.String(fmt.Sprintf("%d", arrivalTime.UnixMilli())), Type: types.MeasureValueTypeTimestamp},
+					{Name: aws.String("arrivalTimeNs"), Value: aws.String(fmt.Sprintf("%d", arrivalTime.UnixNano())), Type: types.MeasureValueTypeTimestamp},
+					{Name: aws.String("arrivalTimeS"), Value: aws.String(fmt.Sprintf("%d", arrivalTime.Unix())), Type: types.MeasureValueTypeTimestamp},
 				},
 				MeasureName: aws.String("measure_name"),
 			}},
@@ -143,13 +151,44 @@ func TestMarshalUnhappyPath(t *testing.T) {
 			}{MeasureName: "measure_name", Dimension: "dimension_name", MeasureValue: "measure_value"},
 		},
 		{
+			name: "Returns err if using bad units",
+			args: struct {
+				Timestamp    time.Time `timestream:"timestamp"`
+				MeasureName  string    `timestream:"measure"`
+				Dimension    string    `timestream:"dimension"`
+				MeasureValue string    `timestream:"attribute"`
+				BadTime      time.Time `timestream:"attribute,name=badTime,unit=bad-unit"`
+			}{Timestamp: now, MeasureName: "measure_name", Dimension: "dimension_name", MeasureValue: "measure_value", BadTime: now},
+		},
+		{
 			name: "Returns err if omitempty on non-string",
 			args: struct {
 				Timestamp    time.Time `timestream:"timestamp"`
-				MeasureName  string    `timestream:"measureName"`
+				MeasureName  string    `timestream:"measure"`
 				Dimension    string    `timestream:"dimension"`
 				MeasureValue float64   `timestream:"attribute,name=SomeName,omitempty"`
 			}{MeasureName: "measure_name", Dimension: "dimension_name", Timestamp: now},
+		},
+		{
+			name: "Returns err if repeated tags",
+			args: struct {
+				Timestamp     time.Time `timestream:"timestamp"`
+				MeasureName   string    `timestream:"measure"`
+				Dimension     string    `timestream:"dimension"`
+				MeasureValue  string    `timestream:"attribute,name=SomeName"`
+				MeasureValue2 string    `timestream:"attribute,name=SomeName"`
+			}{MeasureName: "measure_name", Dimension: "dimension_name", Timestamp: now, MeasureValue: "foo", MeasureValue2: "bar"},
+		},
+		{
+			name: "Returns err if using a struct other than time",
+			args: struct {
+				Timestamp              time.Time `timestream:"timestamp"`
+				MeasureName            string    `timestream:"measure"`
+				Dimension              string    `timestream:"dimension"`
+				UnsupportedStructField struct {
+					SomeField string
+				} `timestream:"attribute,name=SomeName"`
+			}{MeasureName: "measure_name", Dimension: "dimension_name", Timestamp: now, UnsupportedStructField: struct{ SomeField string }{SomeField: "field"}},
 		},
 		{
 			name: "Returns err if timestamp is not time.Time",
