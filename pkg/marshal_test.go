@@ -127,7 +127,6 @@ func TestMarshal(t *testing.T) {
 }
 
 func TestMarshalUnhappyPath(t *testing.T) {
-
 	tests := []struct {
 		name string
 		args any
@@ -155,7 +154,7 @@ func TestMarshalUnhappyPath(t *testing.T) {
 			name: "Returns err if using bad units",
 			args: struct {
 				Timestamp    time.Time `timestream:"timestamp"`
-				MeasureName  string    `timestream:"measureName"`
+				MeasureName  string    `timestream:"measure"`
 				Dimension    string    `timestream:"dimension"`
 				MeasureValue string    `timestream:"attribute"`
 				BadTime      time.Time `timestream:"attribute,name=badTime,unit=bad-unit"`
@@ -165,7 +164,7 @@ func TestMarshalUnhappyPath(t *testing.T) {
 			name: "Returns err if omitempty on non-string",
 			args: struct {
 				Timestamp    time.Time `timestream:"timestamp"`
-				MeasureName  string    `timestream:"measureName"`
+				MeasureName  string    `timestream:"measure"`
 				Dimension    string    `timestream:"dimension"`
 				MeasureValue float64   `timestream:"attribute,name=SomeName,omitempty"`
 			}{MeasureName: "measure_name", Dimension: "dimension_name", Timestamp: now},
@@ -174,7 +173,7 @@ func TestMarshalUnhappyPath(t *testing.T) {
 			name: "Returns err if repeated tags",
 			args: struct {
 				Timestamp     time.Time `timestream:"timestamp"`
-				MeasureName   string    `timestream:"measureName"`
+				MeasureName   string    `timestream:"measure"`
 				Dimension     string    `timestream:"dimension"`
 				MeasureValue  string    `timestream:"attribute,name=SomeName"`
 				MeasureValue2 string    `timestream:"attribute,name=SomeName"`
@@ -184,12 +183,12 @@ func TestMarshalUnhappyPath(t *testing.T) {
 			name: "Returns err if using a struct other than time",
 			args: struct {
 				Timestamp              time.Time `timestream:"timestamp"`
-				MeasureName            string    `timestream:"measureName"`
+				MeasureName            string    `timestream:"measure"`
 				Dimension              string    `timestream:"dimension"`
 				UnsupportedStructField struct {
 					SomeField string
 				} `timestream:"attribute,name=SomeName"`
-			}{MeasureName: "measure_name", Dimension: "dimension_name", Timestamp: now, UnsupportedStructField: struct{SomeField string}{SomeField: "field"}},
+			}{MeasureName: "measure_name", Dimension: "dimension_name", Timestamp: now, UnsupportedStructField: struct{ SomeField string }{SomeField: "field"}},
 		},
 		{
 			name: "Returns err if timestamp is not time.Time",

@@ -164,24 +164,20 @@ func handleRecord(record *types.Record, val reflect.Value, i int, tag string) er
 		dimensionName := val.Field(i).Interface().(string)
 		record.Dimensions = append(record.Dimensions, types.Dimension{Name: &tagName, Value: aws.String(dimensionName)})
 	case attribute:
-		measureValue, err := handleMeasureValue(tagName, tag, val.Field(i), omitempty)
+		if omitempty && isZeroValue(val.Field(i)) {
+			return nil
+		}
+		measureValue, err := handleMeasureValue(tagName, tag, val.Field(i))
 		if err != nil {
 			return err
 		}
-		if !reflect.DeepEqual(measureValue, types.MeasureValue{}) {
-			record.MeasureValues = append(record.MeasureValues, measureValue)
-		}
+		record.MeasureValues = append(record.MeasureValues, measureValue)
 	}
 	return nil
 }
 
-func handleMeasureValue(tagName, tag string, fieldValue reflect.Value, omitEmpty bool) (types.MeasureValue, error) {
+func handleMeasureValue(tagName, tag string, fieldValue reflect.Value) (types.MeasureValue, error) {
 	var measureValue types.MeasureValue
-
-	// Check for zero value and omitEmpty
-	if omitEmpty && isZeroValue(fieldValue) {
-		return types.MeasureValue{}, nil // Special error or value indicating to skip
-	}
 
 	measureValue.Name = aws.String(tagName)
 
@@ -275,51 +271,71 @@ func validateRequiredFields(v any) (reflect.Value, error) {
 		return reflect.Value{}, fmt.Errorf("input is not a struct")
 	}
 
-	requiredTags := map[requiredField]int{
-		measure:   0,
-		timestamp: 0,
-		dimension: 0,
-		attribute: 0,
-	}
-
-	err := validateTypes(val, requiredTags)
+	err := validateTypes(val)
 	if err != nil {
 		return reflect.Value{}, err
 	}
-
-	err = validateAppearances(requiredTags)
+	err = validateAppearances(val)
 	if err != nil {
 		return reflect.Value{}, err
 	}
 	return val, nil
 }
 
-func validateAppearances(requiredTags map[requiredField]int) error {
+func validateAppearances(val reflect.Value) error {
+	requiredTags := map[requiredField]int{
+		measure:   0,
+		timestamp: 0,
+		dimension: 0,
+		attribute: 0,
+	}
+	namesFrequency := make(map[string]int)
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Type().Field(i)
+		tag, ok := field.Tag.Lookup("timestream")
+		if !ok {
+			continue
+		}
+		tagParts := strings.Split(tag, ",")
+		requiredTags[requiredField(tagParts[0])]++
+		tagName, _ := extractTagName(field, tagParts)
+		_, ok = namesFrequency[tagName]
+		if !ok {
+			namesFrequency[tagName] = 1
+		} else {
+			namesFrequency[tagName]++
+		}
+	}
 	for tag, count := range requiredTags {
 		if count == 0 {
 			return fmt.Errorf("missing required tag: %s", tag)
 		}
 		// Assuming multiple dimensions and measureValues are allowed
-		if count > 1 && tag != dimension && tag != attribute {
-			return fmt.Errorf("tag %s appears more than once", tag)
+		if count > 1 && (tag == measure || tag == timestamp) {
+			return fmt.Errorf("tag type %s appears more than once", tag)
+		}
+	}
+	for tn, count := range namesFrequency {
+		if count > 1 {
+			return fmt.Errorf("tag name %s appears multiple times", tn)
 		}
 	}
 	return nil
 }
 
-func validateTypes(val reflect.Value, requiredTags map[requiredField]int) error {
+func validateTypes(val reflect.Value) error {
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		fieldType := val.Type().Field(i)
 
-		if err := validateField(field, fieldType, requiredTags); err != nil {
+		if err := validateField(field, fieldType); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func validateField(field reflect.Value, fieldType reflect.StructField, requiredTags map[requiredField]int) error {
+func validateField(field reflect.Value, fieldType reflect.StructField) error {
 	tag, ok := fieldType.Tag.Lookup("timestream")
 	if !ok {
 		return nil
@@ -329,8 +345,6 @@ func validateField(field reflect.Value, fieldType reflect.StructField, requiredT
 	if err := checkOmitEmpty(fieldType, tagParts); err != nil {
 		return err
 	}
-
-	requiredTags[requiredField(strings.Split(tag, ",")[0])]++
 
 	if err := checkFieldAccessibility(field, fieldType); err != nil {
 		return err

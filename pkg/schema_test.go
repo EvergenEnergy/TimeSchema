@@ -2,21 +2,24 @@ package timestream_test
 
 import (
 	"fmt"
+	"sort"
+	"testing"
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
 	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite/types"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"sort"
-	"testing"
-	"time"
 
 	timestream "github.com/EvergenEnergy/TimeSchema/pkg"
 	"github.com/stretchr/testify/assert"
 )
 
-type testMetricName string
-type testDimension string
+type (
+	testMetricName string
+	testDimension  string
+)
 
 func TestTSSchema_GetMeasureNameFor(t *testing.T) {
 	type args struct {
@@ -30,9 +33,11 @@ func TestTSSchema_GetMeasureNameFor(t *testing.T) {
 	}{
 		{
 			name: "Test gets correct measure name",
-			schema: timestream.Schema[string, string]{"table": {"measure": {
-				Dimensions:  []string{},
-				MetricNames: []string{"metric"}},
+			schema: timestream.Schema[string, string]{"table": {
+				"measure": {
+					Dimensions:  []string{},
+					MetricNames: []string{"metric"},
+				},
 			}},
 			args: args{
 				metricName: "metric",
@@ -44,9 +49,11 @@ func TestTSSchema_GetMeasureNameFor(t *testing.T) {
 			schema: timestream.Schema[string, string]{
 				"table": {"measure": {
 					Dimensions:  []string{},
-					MetricNames: []string{"metric"}}},
+					MetricNames: []string{"metric"},
+				}},
 				"table2": {"measure2": {
-					MetricNames: []string{"metric2"}}},
+					MetricNames: []string{"metric2"},
+				}},
 			},
 			args: args{
 				metricName: "metric",
